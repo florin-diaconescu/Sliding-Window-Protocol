@@ -38,39 +38,6 @@ int main(int argc,char** argv){
     return -1;
   }
 
-//trimit numele fisierului
-  while(1){
-    memset(t.payload, 0, sizeof(t.payload));
-    memset(mesaj.data, 0, sizeof(mesaj.data));
-    mesaj.checksum = 0;
-    mesaj.sequence_number = 0;
-    sprintf(mesaj.data, "%s", file_name);
-
-    for (i = 0; i < PAYLOADSIZE; i++){
-      mesaj.checksum ^= mesaj.data[i];
-    }
-
-    mesaj.akk = 0;
-
-    memcpy(t.payload, &mesaj, sizeof(mesaj));
-    t.len = MSGSIZE;
-    send_message(&t);
-    
-    if (recv_message(&t)<0){
-        perror("receive error");
-    }
-    else{
-      mesaj = *((cs *)t.payload);
-      if (mesaj.akk == 'A'){
-        printf("[%s] Got reply!\n", argv[0]);
-        break;
-      }
-      else{
-        printf("[%s] NAK!\n", argv[0]);
-      }
-    }
-  }
-
 //vreau sa trimit numarul de pachete
   lseek(file, 0, SEEK_SET);
   int marime = lseek(file, 0, SEEK_END);
@@ -120,6 +87,39 @@ int main(int argc,char** argv){
     }
   }
 
+//trimit numele fisierului
+  //while(1){
+    memset(t.payload, 0, sizeof(t.payload));
+    memset(mesaj.data, 0, sizeof(mesaj.data));
+    mesaj.checksum = 0;
+    mesaj.sequence_number = 0;
+    sprintf(mesaj.data, "%s", file_name);
+
+    for (i = 0; i < PAYLOADSIZE; i++){
+      mesaj.checksum ^= mesaj.data[i];
+    }
+
+    mesaj.akk = 0;
+
+    memcpy(t.payload, &mesaj, sizeof(mesaj));
+    t.len = MSGSIZE;
+    send_message(&t);
+    /*
+    if (recv_message(&t)<0){
+        perror("receive error");
+    }
+    else{
+      mesaj = *((cs *)t.payload);
+      if (mesaj.akk == 'A'){
+        printf("[%s] Got reply!\n", argv[0]);
+        break;
+      }
+      else{
+        printf("[%s] NAK!\n", argv[0]);
+      }
+    }*/
+  //}
+
 //vreau sa trimit fisierul
 
   lseek(file, 0, SEEK_SET);
@@ -133,7 +133,7 @@ int main(int argc,char** argv){
 
     mesaj.checksum = 0;
     mesaj.akk = 0;
-    mesaj.sequence_number = i;
+    mesaj.sequence_number = i + 1;
 
     for (j = 0; j < PAYLOADSIZE; j++){
       mesaj.checksum ^= mesaj.data[j];
@@ -171,7 +171,7 @@ int main(int argc,char** argv){
 
     mesaj.checksum = 0;
     mesaj.akk = 0;
-    mesaj.sequence_number = i + wnd;
+    mesaj.sequence_number = i + wnd + 1;
 
     for (j = 0; j < PAYLOADSIZE; j++){
       mesaj.checksum ^= mesaj.data[j];
@@ -185,7 +185,7 @@ int main(int argc,char** argv){
     printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
   }
 
-  for (i = 0; i < wnd; i++){
+  for (i = 0; i <= wnd; i++){
     //TODO : primeste ACK-uri
     if (recv_message(&t)<0){
         perror("receive error");
@@ -200,6 +200,12 @@ int main(int argc,char** argv){
       }
     }
   }
+
+  //vreau mesajul de EXIT de la receiver, dupa ce a terminat de scris in fisier
+  if (recv_message(&t)<0){
+   perror("receive error");
+  }
+
   close(file);
   return 0;
 }

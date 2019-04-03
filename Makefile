@@ -4,13 +4,13 @@ link_emulator/lib.o:
 	$(MAKE) -C link_emulator
 
 send: send.o link_emulator/lib.o
-	g++ -g send.o link_emulator/lib.o -o send
+	g++ -Werror -g send.o link_emulator/lib.o -o send
 
 recv: recv.o link_emulator/lib.o
-	g++ -g recv.o link_emulator/lib.o -o recv
+	g++ -Werror -g recv.o link_emulator/lib.o -o recv
 
 .cpp.o:
-	g++ -Wall -g -c $?
+	g++ -Werror -Wall -g -c $?
 
 clean:
 	$(MAKE) -C link_emulator clean
