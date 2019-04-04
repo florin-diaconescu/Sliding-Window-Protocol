@@ -10,7 +10,7 @@ extern "C"{
 
 #include <iostream>
 #include <string>
-#include <vector>
+#include <set>
 #include <algorithm>
 
 using namespace std;
@@ -18,52 +18,19 @@ using namespace std;
 #define HOST "127.0.0.1"
 #define PORT 10001
 
-bool cmp_seq(cs A, cs B){
-  return A.sequence_number < B.sequence_number;
-}
-
 int main(int argc,char** argv){
   msg r,t;
   cs mesaj;
   unsigned int i;
-  int msg_count, file;
+  int msg_count, file, aux;
   int write_check; //variabila pentru a verifica scrierea in fisier
   char checksum_r; //checksum
   string sent_name;
-  vector<cs> mesaje;
+  set<cs> mesaje; //vreau sa nu inserez mesaje duplicate
+  set<cs>::iterator it;
 
   init(const_cast<char*>(HOST),PORT);
 
-//vreau sa primesc numele fisierului
-  /*
-  if (recv_message(&r)<0){
-    perror("Receive message");
-    return -1;
-  }
-
-  printf("[%s] Got message!\n",argv[0]);
-
-  mesaj = *((cs *)r.payload);
-  checksum_r = 0;
-
-  for (i = 0; i < PAYLOADSIZE; i++){
-    checksum_r ^= mesaj.data[i];
-  }
-
-  if (checksum_r != mesaj.checksum){
-    mesaj.akk = 'N';
-  }
-  else{
-    mesaj.akk = 'A';
-  }
-
-  sent_name = r.payload;
-  mesaj.sequence_number = 0;
-  memset(t.payload, 0, sizeof(t.payload));
-  memcpy(t.payload, &mesaj, sizeof(mesaj));
-  t.len = MSGSIZE;
-  send_message(&t);
-  */
 //vreau sa primesc numarul de pachete
   if (recv_message(&r)<0){
     perror("Receive message");
@@ -94,7 +61,8 @@ int main(int argc,char** argv){
   send_message(&t);
   
 //vreau sa primesc pachetele
-  
+  aux = msg_count;
+
   while(msg_count >= -1){
     if (recv_message(&r)<0){
       perror("Receive message");
@@ -115,7 +83,7 @@ int main(int argc,char** argv){
     }
     else{
       mesaj.akk = 'A';
-      mesaje.push_back(mesaj);
+      mesaje.insert(mesaj);
       msg_count--;
     }
 
@@ -125,22 +93,29 @@ int main(int argc,char** argv){
     send_message(&t);
   }
 
-  sort(mesaje.begin(), mesaje.end(), cmp_seq);
+  msg_count = aux;
+
+  //sort(mesaje.begin(), mesaje.end(), cmp_seq);
+  it = mesaje.begin();
 
   string receive_name = "recv_";
-  receive_name += mesaje[0].data;
+  receive_name += ((cs)(*it)).data;
   file = open(receive_name.c_str(), O_WRONLY | O_CREAT, 0644);
 
-  for (i = 1; i < mesaje.size() - 1; i++){
-    if ((write_check = write(file, mesaje[i].data, PAYLOADSIZE)) < 0){
+  it++;
+
+  for (; it != mesaje.end(); it++){
+    //ultimul mesaj este posibil sa aiba o dimensiune mai mica
+    if (((cs)(*it)).sequence_number == (msg_count + 1)){
+      if ((write_check = write(file, ((cs)(*it)).data, r.len)) < 0){
+        perror("Write error!");
+        return -1;
+      }
+    }
+    else if ((write_check = write(file, ((cs)(*it)).data, PAYLOADSIZE)) < 0){
       perror("Write error!");
       return -1;
     }
-  }
-
-  if ((write_check = write(file, mesaje[i].data, r.len)) < 0){
-    perror("Write error!");
-    return -1;
   }
 
   close(file);
