@@ -29,6 +29,7 @@ int main(int argc,char** argv){
   int delay = atoi(argv[3]);
   int wnd = (speed * delay * 1000)/(MSGSIZE * 8);
   int timeout = 2 * delay;
+  int resend_flag = 0;
   //int last_message_received = -1;
   vector<cs> mesaje;
   //wnd /= 2; //nu vreau o fereastra prea mare
@@ -116,9 +117,9 @@ int main(int argc,char** argv){
   int aux = count;
 
   //vreau sa trimit fisierul
-  while (count >= -1){
+  while (1){
     //-------------------------------------------------------------------------
-    while (wnd > 0 && i <= (aux + 1)){
+    while ((wnd > 0) && (i <= (aux + 1)) && (resend_flag == 0)){
       citit = read(file, mesaj.data, PAYLOADSIZE);
       if (citit < 0){
         perror("Nu s-a reusit citirea din fisier!\n");
@@ -149,9 +150,14 @@ int main(int argc,char** argv){
         perror("receive error");
     }
     else{
+      if (strcmp(t.payload, "RECEIVED") == 0){
+        printf("RECEIVED\n");
+        break;
+      }
       cs mesaj = *((cs *)t.payload);
       if (mesaj.akk == 'A'){
         printf("[%s] Got reply %d!\n", argv[0], mesaj.sequence_number);
+        resend_flag = 0;
         count--;
       }
       else{
@@ -163,7 +169,10 @@ int main(int argc,char** argv){
         t.len = MSGSIZE;
         send_message(&t);
         printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
-        continue;
+        resend_flag = 1;
+        i++;
+        wnd--;
+        //continue;
       }
     }
 

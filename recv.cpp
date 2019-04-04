@@ -10,6 +10,7 @@ extern "C"{
 
 #include <iostream>
 #include <string>
+#include <vector>
 #include <set>
 #include <algorithm>
 
@@ -21,67 +22,32 @@ using namespace std;
 int main(int argc,char** argv){
   msg r,t;
   cs mesaj;
+  vector<int> inserted;
   unsigned int i;
   int msg_count, file, aux;
   int expected_message = 0;
+  int last_length; //lungimea ultimului mesaj
   int write_check; //variabila pentru a verifica scrierea in fisier
   char checksum_r; //checksum
+  int timeout;
   string sent_name;
   set<cs> mesaje; //vreau sa nu inserez mesaje duplicate
   set<cs>::iterator it;
+  pair<set<cs>::iterator, bool> ret;
 
   init(const_cast<char*>(HOST),PORT);
 
 //vreau sa primesc numarul de pachete
-  if (recv_message(&r)<0){
+  while(1){
+    if (recv_message(&r)<0){
     perror("Receive message");
     return -1;
-  }
-
-  printf("[%s] Got message!\n",argv[0]);
-
-  mesaj = *((cs *)r.payload);
-  checksum_r = 0;
-
-  for (i = 0; i < PAYLOADSIZE; i++){
-    checksum_r ^= mesaj.data[i];
-  }
-
-  if (checksum_r != mesaj.checksum){
-    mesaj.akk = 'N';
-  }
-  else{
-    mesaj.akk = 'A';
-  }
-
-  msg_count = atoi(mesaj.data);
-  int timeout = mesaj.sequence_number;
-  mesaj.sequence_number = 0;
-  memset(t.payload, 0, sizeof(t.payload));
-  memcpy(t.payload, &mesaj, sizeof(mesaj));
-  t.len = MSGSIZE;
-  send_message(&t);
-  
-//vreau sa primesc pachetele
-  aux = msg_count; //salvez numarul de mesaje total pentru scrierea in fisier
-
-  while(msg_count >= -1){
-    if (recv_message_timeout(&r, timeout) < 0){
-      perror("Receive message");
-      memset(t.payload, 0, sizeof(t.payload));
-      memset(mesaj.data, 0, sizeof(mesaj.data));
-      mesaj.akk = 'N';
-      mesaj.sequence_number = expected_message;
-      memcpy(t.payload, &mesaj, sizeof(mesaj));
-      t.len = MSGSIZE;
-      send_message(&t);
-      
-      continue;
     }
+
+    printf("[%s] Got message!\n",argv[0]);
 
     mesaj = *((cs *)r.payload);
     checksum_r = 0;
-    printf("[%s] Got message %d!\n",argv[0], mesaj.sequence_number);
 
     for (i = 0; i < PAYLOADSIZE; i++){
       checksum_r ^= mesaj.data[i];
@@ -92,9 +58,102 @@ int main(int argc,char** argv){
     }
     else{
       mesaj.akk = 'A';
-      mesaje.insert(mesaj);
-      expected_message++;
-      msg_count--;
+    }
+
+    msg_count = atoi(mesaj.data);
+    timeout = mesaj.sequence_number;
+    mesaj.sequence_number = 0;
+    memset(t.payload, 0, sizeof(t.payload));
+    memcpy(t.payload, &mesaj, sizeof(mesaj));
+    t.len = MSGSIZE;
+    send_message(&t);
+    if (mesaj.akk == 'A'){
+      break;
+    }
+  }
+   
+//vreau sa primesc pachetele
+  aux = msg_count; //salvez numarul de mesaje total pentru scrierea in fisier
+
+  while(1){
+    //cout << "--------" << msg_count << "------\n";
+    if (recv_message_timeout(&r, timeout) < 0){
+      printf("[%s] Timeout, expected %d!\n", argv[0], expected_message);
+      memset(t.payload, 0, sizeof(t.payload));
+      memset(mesaj.data, 0, sizeof(mesaj.data));
+      mesaj.akk = 'N';
+      mesaj.sequence_number = expected_message;
+      memcpy(t.payload, &mesaj, sizeof(mesaj));
+      t.len = MSGSIZE;
+      send_message(&t);
+
+      continue;
+    }
+
+    mesaj = *((cs *)r.payload);
+
+
+    checksum_r = 0;
+    printf("[%s] Got message %d!\n",argv[0], mesaj.sequence_number);
+
+    for (i = 0; i < PAYLOADSIZE; i++){
+      checksum_r ^= mesaj.data[i];
+    }
+
+    if (checksum_r != mesaj.checksum){
+      mesaj.akk = 'C'; //corrupt
+      mesaj.sequence_number = expected_message;
+    }
+    else{    
+      if(mesaj.sequence_number == (aux + 1)){
+        last_length = r.len;
+      }
+      //mesajul nu este corupt, dar nu este cel pe care il asteptam
+      if (mesaj.sequence_number != expected_message){
+        printf("[%s] Wrong message, expected %d!\n", argv[0], expected_message);
+        ret = mesaje.insert(mesaj);
+        if (ret.second){
+          inserted.push_back(mesaj.sequence_number);
+          msg_count--;
+        }
+
+        memset(t.payload, 0, sizeof(t.payload));
+        memset(mesaj.data, 0, sizeof(mesaj.data));
+        mesaj.akk = 'N';
+        
+        //next_expected_message = mesaj.sequence_number + 1;
+        
+        //cout << "--------- " << next_expected_message <<"\n";
+        //daca mesajul nu exista deja in set
+        
+
+        mesaj.sequence_number = expected_message;
+      }
+      else{
+        mesaj.akk = 'A';
+        ret = mesaje.insert(mesaj);
+        if(ret.second){
+          inserted.push_back(mesaj.sequence_number);
+          msg_count--;
+        } 
+
+        expected_message = 0;
+        sort(inserted.begin(), inserted.end());
+        for (i = 0; i < (inserted.size() - 1); i++){
+          if (inserted[i + 1] - inserted [i] > 1){
+            expected_message = inserted[i] + 1;
+            //cout << "Mesajul dorit " << expected_message << "\n";
+            break;
+          }
+        }
+        if ((expected_message == 0)){// && (msg_count >= -1)){
+          expected_message = inserted[i] + 1;
+          //cout << "Mesajul dorit " << expected_message << "\n";
+        }
+        if (mesaje.size() > ((unsigned int)aux + 1)){
+          break;
+        }   
+      } 
     }
 
     memset(t.payload, 0, sizeof(t.payload));
@@ -102,6 +161,13 @@ int main(int argc,char** argv){
     t.len = MSGSIZE;
     send_message(&t);
   }
+
+  //trimit sender-ului ca s-a terminat primirea pachetelor
+  memset(t.payload, 0, sizeof(t.payload));
+  sprintf(t.payload, "%s", "RECEIVED");
+  t.len = MSGSIZE;
+  send_message(&t);
+  /////////
 
   msg_count = aux;
 
@@ -116,7 +182,8 @@ int main(int argc,char** argv){
   for (; it != mesaje.end(); it++){
     //ultimul mesaj este posibil sa aiba o dimensiune mai mica
     if (((cs)(*it)).sequence_number == (msg_count + 1)){
-      if ((write_check = write(file, ((cs)(*it)).data, r.len)) < 0){
+      
+      if ((write_check = write(file, ((cs)(*it)).data, last_length)) < 0){
         perror("Write error!");
         return -1;
       }
