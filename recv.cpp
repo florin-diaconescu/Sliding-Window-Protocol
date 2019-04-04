@@ -23,6 +23,7 @@ int main(int argc,char** argv){
   cs mesaj;
   unsigned int i;
   int msg_count, file, aux;
+  int expected_message = 0;
   int write_check; //variabila pentru a verifica scrierea in fisier
   char checksum_r; //checksum
   string sent_name;
@@ -54,6 +55,7 @@ int main(int argc,char** argv){
   }
 
   msg_count = atoi(mesaj.data);
+  int timeout = mesaj.sequence_number;
   mesaj.sequence_number = 0;
   memset(t.payload, 0, sizeof(t.payload));
   memcpy(t.payload, &mesaj, sizeof(mesaj));
@@ -61,12 +63,20 @@ int main(int argc,char** argv){
   send_message(&t);
   
 //vreau sa primesc pachetele
-  aux = msg_count;
+  aux = msg_count; //salvez numarul de mesaje total pentru scrierea in fisier
 
   while(msg_count >= -1){
-    if (recv_message(&r)<0){
+    if (recv_message_timeout(&r, timeout) < 0){
       perror("Receive message");
-      return -1;
+      memset(t.payload, 0, sizeof(t.payload));
+      memset(mesaj.data, 0, sizeof(mesaj.data));
+      mesaj.akk = 'N';
+      mesaj.sequence_number = expected_message;
+      memcpy(t.payload, &mesaj, sizeof(mesaj));
+      t.len = MSGSIZE;
+      send_message(&t);
+      
+      continue;
     }
 
     mesaj = *((cs *)r.payload);
@@ -77,13 +87,13 @@ int main(int argc,char** argv){
       checksum_r ^= mesaj.data[i];
     }
 
-    //cout << "checksum A: " << checksum_r << " checksum B: " << mesaj.checksum << "\n";
     if (checksum_r != mesaj.checksum){
       mesaj.akk = 'N';
     }
     else{
       mesaj.akk = 'A';
       mesaje.insert(mesaj);
+      expected_message++;
       msg_count--;
     }
 
@@ -95,7 +105,6 @@ int main(int argc,char** argv){
 
   msg_count = aux;
 
-  //sort(mesaje.begin(), mesaje.end(), cmp_seq);
   it = mesaje.begin();
 
   string receive_name = "recv_";
