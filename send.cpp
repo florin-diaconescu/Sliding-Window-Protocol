@@ -30,9 +30,8 @@ int main(int argc,char** argv){
   int wnd = (speed * delay * 1000)/(MSGSIZE * 8);
   int timeout = 2 * delay;
   int resend_flag = 0;
-  //int last_message_received = -1;
   vector<cs> mesaje;
-  //wnd /= 2; //nu vreau o fereastra prea mare
+  //wnd /= 5; //nu vreau o fereastra prea mare
 
   int i, j, count, file, citit; //count - numarul total de pachete ce vor fi trimise
 
@@ -92,8 +91,7 @@ int main(int argc,char** argv){
     }
   }
 
-//trimit numele fisierului
-
+  //trimit numele fisierului
   lseek(file, 0, SEEK_SET);
 
   memset(t.payload, 0, sizeof(t.payload));
@@ -172,7 +170,6 @@ int main(int argc,char** argv){
         resend_flag = 1;
         i++;
         wnd--;
-        //continue;
       }
     }
 
