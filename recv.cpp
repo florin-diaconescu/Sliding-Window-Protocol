@@ -27,6 +27,7 @@ int main(int argc,char** argv){
   int msg_count, file, aux;
   int expected_message = 0;
   int last_length; //lungimea ultimului mesaj
+  int last_req_msg = -1;
   int write_check; //variabila pentru a verifica scrierea in fisier
   char checksum_r; //checksum
   int timeout;
@@ -39,9 +40,9 @@ int main(int argc,char** argv){
 
 //vreau sa primesc numarul de pachete
   while(1){
-    if (recv_message(&r)<0){
-    perror("Receive message");
-    return -1;
+    if (recv_message_timeout(&r, timeout) < 0){
+      perror("Receive message");
+      mesaj.akk = 'N';
     }
 
     printf("[%s] Got message!\n",argv[0]);
@@ -55,6 +56,7 @@ int main(int argc,char** argv){
 
     if (checksum_r != mesaj.checksum){
       mesaj.akk = 'N';
+      cout << "S-a pierdut primul pachet, bagami-as!\n";
     }
     else{
       mesaj.akk = 'A';
@@ -76,8 +78,8 @@ int main(int argc,char** argv){
   aux = msg_count; //salvez numarul de mesaje total pentru scrierea in fisier
 
   while(1){
-    //cout << "--------" << msg_count << "------\n";
-    if (recv_message_timeout(&r, timeout) < 0){
+    cout << "--------Am atatea mesaje: " << mesaje.size() << "------\n";
+    if (recv_message_timeout(&r, 2*timeout) < 0){
       printf("[%s] Timeout, expected %d!\n", argv[0], expected_message);
       memset(t.payload, 0, sizeof(t.payload));
       memset(mesaj.data, 0, sizeof(mesaj.data));
@@ -103,13 +105,15 @@ int main(int argc,char** argv){
     if (checksum_r != mesaj.checksum){
       mesaj.akk = 'C'; //corrupt
       mesaj.sequence_number = expected_message;
+      last_req_msg = mesaj.sequence_number;
     }
     else{    
       if(mesaj.sequence_number == (aux + 1)){
         last_length = r.len;
       }
       //mesajul nu este corupt, dar nu este cel pe care il asteptam
-      if (mesaj.sequence_number != expected_message){
+      if (mesaj.sequence_number != expected_message && (expected_message != last_req_msg)){
+        cout << "----------msg_sq_no " << mesaj.sequence_number << " exp_msg "<< expected_message << " last_req_msg "<< last_req_msg <<"\n";
         printf("[%s] Wrong message, expected %d!\n", argv[0], expected_message);
         ret = mesaje.insert(mesaj);
         if (ret.second){
@@ -120,6 +124,7 @@ int main(int argc,char** argv){
         memset(t.payload, 0, sizeof(t.payload));
         memset(mesaj.data, 0, sizeof(mesaj.data));
         mesaj.akk = 'N';
+        last_req_msg = expected_message;
         
         //next_expected_message = mesaj.sequence_number + 1;
         
