@@ -77,7 +77,7 @@ int main(int argc,char** argv){
    
 //vreau sa primesc pachetele
   aux = msg_count; //salvez numarul de mesaje total pentru scrierea in fisier
-  vector<bool> received((aux + 1), false);
+  vector<bool> received((aux + 2), false);
 
   while(1){
     if (recv_message_timeout(&r, timeout) < 0){
@@ -85,11 +85,18 @@ int main(int argc,char** argv){
       memset(t.payload, 0, sizeof(t.payload));
       memset(mesaj.data, 0, sizeof(mesaj.data));
       mesaj.akk = 'N';
+      
+      nrsort++;
+      for (i = (expected_message); i < (received.size() - 1); i++){
+        if (received[i] == false){
+          expected_message = i;
+          break;
+        }
+      }
       mesaj.sequence_number = expected_message;
       memcpy(t.payload, &mesaj, sizeof(mesaj));
       t.len = MSGSIZE;
       send_message(&t);
-      nrsort++;
 
       continue;
     }
@@ -130,6 +137,7 @@ int main(int argc,char** argv){
         last_req_msg = expected_message;
 
         mesaj.sequence_number = expected_message;
+
       }
       else{
         mesaj.akk = 'A';
@@ -145,13 +153,13 @@ int main(int argc,char** argv){
             break;
           }
         }
-
-        if (mesaje.size() > ((unsigned int)aux + 1)){
-          break;
-        }   
       } 
     }
 
+    //verific daca am receptionat deja toate mesajele
+    if (mesaje.size() > ((unsigned int)aux + 1)){
+      break;
+    }
     memset(t.payload, 0, sizeof(t.payload));
     memcpy(t.payload, &mesaj, sizeof(mesaj));
     t.len = MSGSIZE;
@@ -202,3 +210,4 @@ int main(int argc,char** argv){
 
   return 0;
 }
+
