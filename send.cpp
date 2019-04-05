@@ -77,7 +77,7 @@ int main(int argc,char** argv){
     t.len = MSGSIZE;
     send_message(&t);
     
-    if (recv_message(&t)<0){
+    if (recv_message_timeout(&t, 2*timeout)<0){
         perror("receive error");
     }
     else{

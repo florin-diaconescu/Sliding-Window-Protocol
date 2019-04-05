@@ -40,7 +40,7 @@ int main(int argc,char** argv){
 
 //vreau sa primesc numarul de pachete
   while(1){
-    if (recv_message_timeout(&r, timeout) < 0){
+    if (recv_message(&r) < 0){
       perror("Receive message");
       mesaj.akk = 'N';
     }
@@ -56,10 +56,11 @@ int main(int argc,char** argv){
 
     if (checksum_r != mesaj.checksum){
       mesaj.akk = 'N';
-      cout << "S-a pierdut primul pachet, bagami-as!\n";
+      cout << "S-a pierdut primul pachet!\n";
     }
     else{
       mesaj.akk = 'A';
+      cout << "E totul bine!\n";
     }
 
     msg_count = atoi(mesaj.data);
@@ -78,13 +79,13 @@ int main(int argc,char** argv){
   aux = msg_count; //salvez numarul de mesaje total pentru scrierea in fisier
 
   while(1){
-    cout << "--------Am atatea mesaje: " << mesaje.size() << "------\n";
-    if (recv_message_timeout(&r, 2*timeout) < 0){
+    //cout << "--------Am atatea mesaje: " << mesaje.size() << "------\n";
+    if (recv_message_timeout(&r, timeout) < 0){
       printf("[%s] Timeout, expected %d!\n", argv[0], expected_message);
       memset(t.payload, 0, sizeof(t.payload));
       memset(mesaj.data, 0, sizeof(mesaj.data));
       mesaj.akk = 'N';
-      mesaj.sequence_number = expected_message;
+      //mesaj.sequence_number = expected_message;
       memcpy(t.payload, &mesaj, sizeof(mesaj));
       t.len = MSGSIZE;
       send_message(&t);
@@ -103,12 +104,13 @@ int main(int argc,char** argv){
     }
 
     if (checksum_r != mesaj.checksum){
-      mesaj.akk = 'C'; //corrupt
-      mesaj.sequence_number = expected_message;
+      mesaj.akk = 'N'; //corrupt
+      cout << "CORUPT! " << mesaj.sequence_number;
+      //mesaj.sequence_number = expected_message;
       last_req_msg = mesaj.sequence_number;
     }
     else{    
-      if(mesaj.sequence_number == (aux + 1)){
+      if(r.len != MSGSIZE && r.len != PAYLOADSIZE && r.len != 0){
         last_length = r.len;
       }
       //mesajul nu este corupt, dar nu este cel pe care il asteptam
@@ -167,6 +169,7 @@ int main(int argc,char** argv){
     send_message(&t);
   }
 
+  cout << "!!!!!!!!!!!!!!! " << last_length << "\n";
   //trimit sender-ului ca s-a terminat primirea pachetelor
   memset(t.payload, 0, sizeof(t.payload));
   sprintf(t.payload, "%s", "RECEIVED");
