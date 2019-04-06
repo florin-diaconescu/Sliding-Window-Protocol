@@ -62,6 +62,7 @@ int main(int argc,char** argv){
     memset(mesaj.data, 0, sizeof(mesaj.data));
     mesaj.checksum = 0;
     mesaj.sequence_number = timeout; //trimit timeout-ul in recv
+    mesaj.size = wnd; //trimit dimensiunea ferestrei in recv
     
     sprintf(mesaj.data, "%d", count);
 
@@ -70,6 +71,10 @@ int main(int argc,char** argv){
     }
 
     mesaj.akk = 0;
+
+    mesaj.checksum ^= mesaj.akk;
+    mesaj.checksum ^= mesaj.sequence_number;
+    mesaj.checksum ^= mesaj.size;  
 
     memcpy(t.payload, &mesaj, sizeof(mesaj));
     t.len = MSGSIZE;
@@ -104,6 +109,11 @@ int main(int argc,char** argv){
   }
 
   mesaj.akk = 0;
+  mesaj.size = 0;
+
+  mesaj.checksum ^= mesaj.akk;
+  mesaj.checksum ^= mesaj.sequence_number;
+  mesaj.checksum ^= mesaj.size;  
 
   memcpy(t.payload, &mesaj, sizeof(mesaj));
   t.len = MSGSIZE;
@@ -126,10 +136,15 @@ int main(int argc,char** argv){
       mesaj.checksum = 0;
       mesaj.akk = 0;
       mesaj.sequence_number = i;
+      mesaj.size = citit;
 
       for (j = 0; j < PAYLOADSIZE; j++){
         mesaj.checksum ^= mesaj.data[j];
       }
+
+      mesaj.checksum ^= mesaj.akk;
+      mesaj.checksum ^= mesaj.sequence_number;
+      mesaj.checksum ^= mesaj.size;  
 
       memset(t.payload, 0, sizeof(t.payload));
       memcpy(t.payload, &mesaj, sizeof(mesaj));
