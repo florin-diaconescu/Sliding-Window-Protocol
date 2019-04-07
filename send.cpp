@@ -11,31 +11,27 @@ extern "C"{
 }
 
 #include <iostream>
-#include <string>
 #include <vector>
-#include <algorithm>
 
 using namespace std;
 
 #define HOST "127.0.0.1"
 #define PORT 10000
 
-int main(int argc,char** argv){
+int main(int argc,char** argv)
+{
   init(const_cast<char*>(HOST),PORT);
   msg t;
   cs mesaj;
-  char *file_name = argv[1];
-  int speed = atoi(argv[2]);
-  int delay = atoi(argv[3]);
-  int wnd = (speed * delay * 1000)/(MSGSIZE * 8);
-  int timeout = 2 * delay;
-  int no_ret = 0;
-  vector<cs> mesaje;
-  //wnd /= 2; //nu vreau o fereastra prea mare
+  char *file_name = argv[1]; //numele fisierului de intrare
+  int speed = atoi(argv[2]); //viteza de transmisie
+  int delay = atoi(argv[3]); //delay-ul
+  int wnd = (speed * delay * 1000)/(MSGSIZE * 8); //calculez dimensiunea ferestrei
+  int timeout = 2 * delay; //iau timeout-ul ca 2 * delay
+  vector<cs> mesaje; //vectorul de mesaje
 
-  int i, j, count, file, citit; //count - numarul total de pachete ce vor fi trimise
+  int i, count, file, citit; //count - numarul total de pachete ce vor fi trimise
 
-  //cout << wnd << "\n";
   file = open(file_name, O_RDONLY);
   if (!file)
   {
@@ -45,7 +41,8 @@ int main(int argc,char** argv){
 
 //vreau sa trimit numarul de pachete
   lseek(file, 0, SEEK_SET);
-  int marime = lseek(file, 0, SEEK_END);
+  int marime = lseek(file, 0, SEEK_END); //dimensiunea totala a fisierului
+  //calculez numarul de mesaje
   if (marime % PAYLOADSIZE)
   {
     count = marime / PAYLOADSIZE;
@@ -55,164 +52,125 @@ int main(int argc,char** argv){
     count = marime / PAYLOADSIZE  + 3;
   }
 
+  //nu vreau ca fereastra sa fie mai mare ca numarul de mesaje
   if (count < wnd)
   {
     wnd = count - 1;
   }
 
-  //cout << "wnd = " << wnd << " count = " << count << "\n";
-
+  //vreau sa trimit numarul de mesaje in receiver
   while(1)
   {
     memset(t.payload, 0, sizeof(t.payload));
     memset(mesaj.data, 0, sizeof(mesaj.data));
-    mesaj.checksum = 0;
-    mesaj.sequence_number = timeout; //trimit timeout-ul in recv
-    mesaj.size = wnd; //trimit dimensiunea ferestrei in recv
+    mesaj.sequence_number = timeout; //trimit timeout-ul in receiver
+    mesaj.size = wnd; //trimit dimensiunea ferestrei in receiver
     
     sprintf(mesaj.data, "%d", count);
 
-    for (i = 0; i < PAYLOADSIZE; i++)
-    {
-      mesaj.checksum ^= mesaj.data[i];
-    }
-
-    mesaj.akk = 0;
-
-    mesaj.checksum ^= mesaj.akk;
-    mesaj.checksum ^= mesaj.sequence_number;
-    mesaj.checksum ^= mesaj.size;  
+    //calculez checksum-ul mesajului
+    mesaj.checksum = calculate_checksum(mesaj);
 
     memcpy(t.payload, &mesaj, sizeof(mesaj));
     t.len = MSGSIZE;
     send_message(&t);
     
-    if (recv_message_timeout(&t, 2*timeout)<0)
+    if (recv_message_timeout(&t, 2 * timeout)<0)
     {
         perror("receive error");
     }
     else
     {
       mesaj = *((cs *)t.payload);
+      //opresc bucla infinita doar daca primesc ACK de la receiver
       if (mesaj.akk == 'A')
       {
-        //printf("[%s] Got reply!\n", argv[0]);
         break;
-      }
-      else
-      {
-        //printf("[%s] NAK!\n", argv[0]);
       }
     }
   }
 
-  //trimit numele fisierului
+  //salvez numele fisierului de intrare in mesaje[0]
   lseek(file, 0, SEEK_SET);
 
-  mesaj.checksum = 0;
   mesaj.sequence_number = 0;
-  sprintf(mesaj.data, "%s", file_name);
-
-  for (i = 0; i < PAYLOADSIZE; i++)
-  {
-    mesaj.checksum ^= mesaj.data[i];
-  }
-
   mesaj.akk = 0;
   mesaj.size = 0;
+  sprintf(mesaj.data, "%s", file_name);
 
-  mesaj.checksum ^= mesaj.akk;
-  mesaj.checksum ^= mesaj.sequence_number;
-  mesaj.checksum ^= mesaj.size;  
+  mesaj.checksum = calculate_checksum(mesaj); 
 
   mesaje.push_back(mesaj);
 
   i = 1;
 
-  int aux = count;
-
+  //salvez fiecare mesaj (cu bucati de 1394 de bytes din fisierul de
+  //intrare salvate in mesaj.data), cu campurile aferente
   while ((citit = read(file, mesaj.data, PAYLOADSIZE)) > 0)
   {
-    mesaj.checksum = 0;
     mesaj.akk = 0;
     mesaj.sequence_number = i;
     mesaj.size = citit;
 
-    for (j = 0; j < PAYLOADSIZE; j++)
-    {
-      mesaj.checksum ^= mesaj.data[j];
-    }
-
-    mesaj.checksum ^= mesaj.akk;
-    mesaj.checksum ^= mesaj.sequence_number;
-    mesaj.checksum ^= mesaj.size;  
+    mesaj.checksum = calculate_checksum(mesaj); 
 
     mesaje.push_back(mesaj);
     i++;
   }
 
-  i = 0;
+  i = 0; //folosit pentru numarul de secventa
+
   //vreau sa trimit fisierul
   while (1)
   {
     //-------------------------------------------------------------------------
-    while ((wnd > 0) && (i <= (aux + 1)))
+    //cat timp ma incadrez in dimensiunea ferestrei si trimit mesaje valide, cu
+    //numarul de secventa mai mic decat numarul maxim
+    while ((wnd > 0) && (i <= (count + 1)))
     {
       mesaj = mesaje[i];
       memset(t.payload, 0, sizeof(t.payload));
       memcpy(t.payload, &mesaj, sizeof(mesaj));
       t.len = mesaj.size;
-      //printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
       send_message(&t);
       
       i++;
-
       wnd--;
     }
 
-    //--------------------------------------------------------------primesc mesaj
+    //----------------------------------------------------------primesc mesaj
     if (recv_message(&t) < 0)
     {
         perror("receive error");
     }
     else{
+      //intrerup bucla daca primesc de la receiver ca toate pachetele au fost
+      //receptionate
       if (strcmp(t.payload, "RECEIVED") == 0)
       {
-        //printf("RECEIVED\n");
         break;
       }
+
       cs mesaj = *((cs *)t.payload);
-      if (mesaj.akk == 'A')
+      //daca primesc NAK, vreau sa retrimit mesajul pierdut/transmis incorect
+      if (mesaj.akk == 'N')
       {
-        //printf("[%s] Got reply %d!\n", argv[0], mesaj.sequence_number);
-        count--;
-      }
-      else
-      {
-        //printf("[%s] NAK %d!\n", argv[0], mesaj.sequence_number);
         mesaj = mesaje[mesaj.sequence_number];
         memset(t.payload, 0, sizeof(t.payload));
         memcpy(t.payload, &mesaj, sizeof(mesaj));
         t.len = MSGSIZE;
         send_message(&t);
-        //printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
         wnd--;
-        no_ret++;
       }
     }
 
     wnd++;
   }
 
-  //cout << "Am retransmis atatea mesaje: " << no_ret << "\n";
   //vreau mesajul de EXIT de la receiver, dupa ce a terminat de scris in fisier
   if (recv_message(&t)<0)
   {
    perror("receive error");
-  }
-  else
-  {
-    //printf("%s\n", t.payload);
   }
 
   close(file);
