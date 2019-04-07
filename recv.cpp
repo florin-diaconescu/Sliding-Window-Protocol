@@ -75,8 +75,7 @@ int main(int argc,char** argv)
       break;
     }
   }
-  
-  cout << "AYY\n";
+
   //initializez vectorul de pachete
   vector<int> packets(msg_count);  
   for (int i = 0; i < msg_count; i++)
