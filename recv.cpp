@@ -134,7 +134,7 @@ int main(int argc,char** argv){
       printf("CORRUPT! %d", bgn);
       packets.erase(packets.begin() + bgn);
           if ((bgn + wnd) < aux){
-            packets.insert(packets.begin() + (bgn + wnd), expected_message);
+            packets.insert(packets.begin() + (bgn + wnd - 1), expected_message);
           }
           else{
             packets.insert(packets.begin() + (aux - 1), expected_message);
@@ -155,7 +155,7 @@ int main(int argc,char** argv){
           //  bgn++;
           packets.erase(packets.begin() + bgn);
           if ((bgn + wnd + 1) < aux){
-            packets.insert(packets.begin() + (bgn + wnd), expected_message);
+            packets.insert(packets.begin() + (bgn + wnd - 1), expected_message);
           }
           else{
             cout << "E pe final!\n";
@@ -177,10 +177,10 @@ int main(int argc,char** argv){
           nrsort++;
         }
         else{
-          cout << "Nasol, mai exista deja!\n";
+          cout << "Nasol, mai exista deja!" << mesaj.sequence_number << "\n";
           packets.erase(packets.begin() + bgn);
           if ((bgn + wnd) < aux){
-            packets.insert(packets.begin() + (bgn + wnd), expected_message);
+            packets.insert(packets.begin() + (bgn + wnd - 2), expected_message);
           }
           else{
             cout << "E pe final!\n";
