@@ -98,8 +98,6 @@ int main(int argc,char** argv){
   //trimit numele fisierului
   lseek(file, 0, SEEK_SET);
 
-  memset(t.payload, 0, sizeof(t.payload));
-  memset(mesaj.data, 0, sizeof(mesaj.data));
   mesaj.checksum = 0;
   mesaj.sequence_number = 0;
   sprintf(mesaj.data, "%s", file_name);
@@ -115,43 +113,43 @@ int main(int argc,char** argv){
   mesaj.checksum ^= mesaj.sequence_number;
   mesaj.checksum ^= mesaj.size;  
 
-  memcpy(t.payload, &mesaj, sizeof(mesaj));
-  t.len = MSGSIZE;
-  send_message(&t);
   mesaje.push_back(mesaj);
+
   i = 1;
 
   int aux = count;
 
+  while ((citit = read(file, mesaj.data, PAYLOADSIZE)) > 0){
+    //cout << "AAAAAAAAA" << i;
+    mesaj.checksum = 0;
+    mesaj.akk = 0;
+    mesaj.sequence_number = i;
+    mesaj.size = citit;
+
+    for (j = 0; j < PAYLOADSIZE; j++){
+      mesaj.checksum ^= mesaj.data[j];
+    }
+
+    mesaj.checksum ^= mesaj.akk;
+    mesaj.checksum ^= mesaj.sequence_number;
+    mesaj.checksum ^= mesaj.size;  
+
+    mesaje.push_back(mesaj);
+    i++;
+  }
+
+  i = 0;
   //vreau sa trimit fisierul
   while (1){
     //-------------------------------------------------------------------------
     while ((wnd > 0) && (i <= (aux + 1))){
-      citit = read(file, mesaj.data, PAYLOADSIZE);
-      if (citit < 0){
-        perror("Nu s-a reusit citirea din fisier!\n");
-        return -1;
-      }
-
-      mesaj.checksum = 0;
-      mesaj.akk = 0;
-      mesaj.sequence_number = i;
-      mesaj.size = citit;
-
-      for (j = 0; j < PAYLOADSIZE; j++){
-        mesaj.checksum ^= mesaj.data[j];
-      }
-
-      mesaj.checksum ^= mesaj.akk;
-      mesaj.checksum ^= mesaj.sequence_number;
-      mesaj.checksum ^= mesaj.size;  
-
+      mesaj = mesaje[i];
       memset(t.payload, 0, sizeof(t.payload));
       memcpy(t.payload, &mesaj, sizeof(mesaj));
-      t.len = citit;
-      send_message(&t);
-      mesaje.push_back(mesaj);
+      t.len = mesaj.size;
       printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
+      send_message(&t);
+      
       i++;
 
       wnd--;

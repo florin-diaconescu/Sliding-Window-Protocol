@@ -22,11 +22,12 @@ using namespace std;
 int main(int argc,char** argv){
   msg r,t;
   cs mesaj;
-  unsigned int i;
+  unsigned int i, j;
   int bgn = 0; //folosit pentru a vedea de unde incep calculele cu fereastra
   int wnd; //dimensiunea ferestrei
   int msg_count, file, aux;
   int expected_message = 0;
+  int no_timeout = 0;
   //int last_length; //lungimea ultimului mesaj
   int nrsort = 0;
   //int last_req_msg = -1;
@@ -92,15 +93,16 @@ int main(int argc,char** argv){
   }
 
   while(1){
-    for (unsigned int i = 0 ; i < packets.size(); i++){
+    /*for (unsigned int i = 0 ; i < packets.size(); i++){
       cout <<packets[i] << " ";
     }
-    cout << "\n";
-    if (recv_message_timeout(&r, timeout) < 0){
+    cout << "\n";*/
+    if (recv_message_timeout(&r, 2 * timeout) < 0){
       printf("[%s] Timeout, expected %d!\n", argv[0], expected_message);
       memset(t.payload, 0, sizeof(t.payload));
       memset(mesaj.data, 0, sizeof(mesaj.data));
       mesaj.akk = 'N';
+      no_timeout++;
       
       //nrsort++;
 
@@ -125,11 +127,10 @@ int main(int argc,char** argv){
     checksum_r ^= mesaj.sequence_number;
     checksum_r ^= mesaj.size;  
 
-    cout << checksum_r << " " << mesaj.checksum << "\n";
+    //out << checksum_r << " " << mesaj.checksum << "\n";
     if (checksum_r != mesaj.checksum){
       
       //last_req_msg = mesaj.sequence_number;
-      //cout << "HATZ" << packets.size() << " "<< packets[bgn] <<" \n";
       printf("CORRUPT! %d", bgn);
       packets.erase(packets.begin() + bgn);
           if ((bgn + wnd) < aux){
@@ -149,44 +150,51 @@ int main(int argc,char** argv){
       //mesajul nu este corupt, dar nu este cel pe care il asteptam
       if (mesaj.sequence_number != expected_message){
         printf("[%s] Wrong message, expected %d!\n", argv[0], expected_message);
-        //ret = mesaje.insert(mesaj);
         if (mesaje[mesaj.sequence_number].size == 0){
           mesaje[mesaj.sequence_number] = mesaj;
-          packets.erase(find(packets.begin() + bgn, packets.end(), mesaj.sequence_number));
-          if (bgn + wnd < aux){
+          //  bgn++;
+          packets.erase(packets.begin() + bgn);
+          if ((bgn + wnd + 1) < aux){
             packets.insert(packets.begin() + (bgn + wnd), expected_message);
           }
           else{
+            cout << "E pe final!\n";
             packets.insert(packets.begin() + (aux - 1), expected_message);
           }
-          nrsort++;
+
+          for (j = bgn; j < packets.size(); j++){
+            if (packets[j] == mesaj.sequence_number){
+              break;
+            }
+          }
+
+          packets.erase(packets.begin() + j);
+          packets.insert(packets.begin(), mesaj.sequence_number);
           bgn++;
+          cout << "--- bgn =  " << bgn << " ";
+          //packets.erase(packets.begin() + bgn);
+          
+          nrsort++;
         }
-        //daca mesajul nu exista deja in set
-        //if (ret.second){
-          /*packets.erase(find(packets.begin() + bgn, packets.end(), mesaj.sequence_number));
-          if (bgn + wnd < aux){
-            packets.insert(packets.begin() + (wnd), expected_message);
+        else{
+          cout << "Nasol, mai exista deja!\n";
+          packets.erase(packets.begin() + bgn);
+          if ((bgn + wnd) < aux){
+            packets.insert(packets.begin() + (bgn + wnd), expected_message);
           }
           else{
-            packets.insert(packets.begin() + (aux), expected_message);
+            cout << "E pe final!\n";
+            packets.insert(packets.begin() + (aux - 1), expected_message);
           }
-        //}*/
+        }
 
         mesaj.akk = 'N';
-        //last_req_msg = expected_message;
 
         mesaj.sequence_number = expected_message;
 
       }
       else{
         mesaj.akk = 'A';
-        /*ret = mesaje.insert(mesaj);
-        if(ret.second){
-          //received[mesaj.sequence_number] = true;
-          packets.erase(packets.begin() + bgn);
-          bgn--;
-        }*/
         if (mesaje[mesaj.sequence_number].size == 0){
 
           mesaje[mesaj.sequence_number] = mesaj;
@@ -194,13 +202,6 @@ int main(int argc,char** argv){
           bgn++;
           nrsort++;
         }
-
-        /*for (i = 0; i < (received.size() - 1); i++){
-          if (received[i] == false){
-            expected_message = i;
-            break;
-          }
-        }*/
       } 
     }
 
@@ -212,7 +213,7 @@ int main(int argc,char** argv){
     
     //bgn++;
     expected_message = packets[bgn];
-    cout << "Expected message: " << expected_message << "\n";
+    //cout << "Expected message: " << expected_message << "\n";
     memset(t.payload, 0, sizeof(t.payload));
     memcpy(t.payload, &mesaj, sizeof(mesaj));
     t.len = MSGSIZE;
@@ -244,7 +245,7 @@ int main(int argc,char** argv){
   }
 
   close(file);
-  cout << "Am retransmis: " << nrsort << "\n";
+  cout << "Am luat timeout de: " << no_timeout << "\n";
 
   //trimit sender-ului un mesaj ca s-a terminat scrierea in fisier
   memset(t.payload, 0, sizeof(t.payload));
