@@ -29,14 +29,16 @@ int main(int argc,char** argv){
   int delay = atoi(argv[3]);
   int wnd = (speed * delay * 1000)/(MSGSIZE * 8);
   int timeout = 2 * delay;
+  int no_ret = 0;
   vector<cs> mesaje;
-  //wnd /= 5; //nu vreau o fereastra prea mare
+  //wnd /= 2; //nu vreau o fereastra prea mare
 
   int i, j, count, file, citit; //count - numarul total de pachete ce vor fi trimise
 
   cout << wnd << "\n";
   file = open(file_name, O_RDONLY);
-  if (!file){
+  if (!file)
+  {
     perror("Fisierul nu s-a putut deschide!");
     return -1;
   }
@@ -44,20 +46,24 @@ int main(int argc,char** argv){
 //vreau sa trimit numarul de pachete
   lseek(file, 0, SEEK_SET);
   int marime = lseek(file, 0, SEEK_END);
-  if (marime % PAYLOADSIZE){
+  if (marime % PAYLOADSIZE)
+  {
     count = marime / PAYLOADSIZE;
   }
-  else{
+  else
+  {
     count = marime / PAYLOADSIZE  + 3;
   }
 
-  if (count < wnd){
+  if (count < wnd)
+  {
     wnd = count - 1;
   }
 
   cout << "wnd = " << wnd << " count = " << count << "\n";
 
-  while(1){
+  while(1)
+  {
     memset(t.payload, 0, sizeof(t.payload));
     memset(mesaj.data, 0, sizeof(mesaj.data));
     mesaj.checksum = 0;
@@ -66,7 +72,8 @@ int main(int argc,char** argv){
     
     sprintf(mesaj.data, "%d", count);
 
-    for (i = 0; i < PAYLOADSIZE; i++){
+    for (i = 0; i < PAYLOADSIZE; i++)
+    {
       mesaj.checksum ^= mesaj.data[i];
     }
 
@@ -80,16 +87,20 @@ int main(int argc,char** argv){
     t.len = MSGSIZE;
     send_message(&t);
     
-    if (recv_message_timeout(&t, 2*timeout)<0){
+    if (recv_message_timeout(&t, 2*timeout)<0)
+    {
         perror("receive error");
     }
-    else{
+    else
+    {
       mesaj = *((cs *)t.payload);
-      if (mesaj.akk == 'A'){
+      if (mesaj.akk == 'A')
+      {
         printf("[%s] Got reply!\n", argv[0]);
         break;
       }
-      else{
+      else
+      {
         printf("[%s] NAK!\n", argv[0]);
       }
     }
@@ -102,7 +113,8 @@ int main(int argc,char** argv){
   mesaj.sequence_number = 0;
   sprintf(mesaj.data, "%s", file_name);
 
-  for (i = 0; i < PAYLOADSIZE; i++){
+  for (i = 0; i < PAYLOADSIZE; i++)
+  {
     mesaj.checksum ^= mesaj.data[i];
   }
 
@@ -119,14 +131,15 @@ int main(int argc,char** argv){
 
   int aux = count;
 
-  while ((citit = read(file, mesaj.data, PAYLOADSIZE)) > 0){
-    //cout << "AAAAAAAAA" << i;
+  while ((citit = read(file, mesaj.data, PAYLOADSIZE)) > 0)
+  {
     mesaj.checksum = 0;
     mesaj.akk = 0;
     mesaj.sequence_number = i;
     mesaj.size = citit;
 
-    for (j = 0; j < PAYLOADSIZE; j++){
+    for (j = 0; j < PAYLOADSIZE; j++)
+    {
       mesaj.checksum ^= mesaj.data[j];
     }
 
@@ -140,9 +153,11 @@ int main(int argc,char** argv){
 
   i = 0;
   //vreau sa trimit fisierul
-  while (1){
+  while (1)
+  {
     //-------------------------------------------------------------------------
-    while ((wnd > 0) && (i <= (aux + 1))){
+    while ((wnd > 0) && (i <= (aux + 1)))
+    {
       mesaj = mesaje[i];
       memset(t.payload, 0, sizeof(t.payload));
       memcpy(t.payload, &mesaj, sizeof(mesaj));
@@ -156,20 +171,24 @@ int main(int argc,char** argv){
     }
 
     //--------------------------------------------------------------primesc mesaj
-    if (recv_message(&t) < 0){
+    if (recv_message(&t) < 0)
+    {
         perror("receive error");
     }
     else{
-      if (strcmp(t.payload, "RECEIVED") == 0){
+      if (strcmp(t.payload, "RECEIVED") == 0)
+      {
         printf("RECEIVED\n");
         break;
       }
       cs mesaj = *((cs *)t.payload);
-      if (mesaj.akk == 'A'){
+      if (mesaj.akk == 'A')
+      {
         printf("[%s] Got reply %d!\n", argv[0], mesaj.sequence_number);
         count--;
       }
-      else{
+      else
+      {
         printf("[%s] NAK %d!\n", argv[0], mesaj.sequence_number);
         mesaj = mesaje[mesaj.sequence_number];
         memset(t.payload, 0, sizeof(t.payload));
@@ -178,17 +197,21 @@ int main(int argc,char** argv){
         send_message(&t);
         printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
         wnd--;
+        no_ret++;
       }
     }
 
     wnd++;
   }
 
+  cout << "Am retransmis atatea mesaje: " << no_ret << "\n";
   //vreau mesajul de EXIT de la receiver, dupa ce a terminat de scris in fisier
-  if (recv_message(&t)<0){
+  if (recv_message(&t)<0)
+  {
    perror("receive error");
   }
-  else{
+  else
+  {
     printf("%s\n", t.payload);
   }
 

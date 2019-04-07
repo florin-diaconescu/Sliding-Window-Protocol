@@ -28,21 +28,19 @@ int main(int argc,char** argv){
   int msg_count, file, aux;
   int expected_message = 0;
   int no_timeout = 0;
-  //int last_length; //lungimea ultimului mesaj
-  int nrsort = 0;
-  //int last_req_msg = -1;
+  int nr_msg = 0;
   int write_check; //variabila pentru a verifica scrierea in fisier
   char checksum_r; //checksum
   int timeout;
   string sent_name;
-  //set<cs> mesaje; //vreau sa nu inserez mesaje duplicate
   vector<cs>::iterator it;
   pair<set<cs>::iterator, bool> ret;
 
   init(const_cast<char*>(HOST),PORT);
 
 //vreau sa primesc numarul de pachete
-  while(1){
+  while(1)
+  {
     if (recv_message(&r) < 0){
       perror("Receive message");
       mesaj.akk = 'N';
@@ -53,7 +51,8 @@ int main(int argc,char** argv){
     mesaj = *((cs *)r.payload);
     checksum_r = 0;
 
-    for (i = 0; i < PAYLOADSIZE; i++){
+    for (i = 0; i < PAYLOADSIZE; i++)
+    {
       checksum_r ^= mesaj.data[i];
     }
 
@@ -61,11 +60,13 @@ int main(int argc,char** argv){
     checksum_r ^= mesaj.sequence_number;
     checksum_r ^= mesaj.size;  
 
-    if (checksum_r != mesaj.checksum){
+    if (checksum_r != mesaj.checksum)
+    {
       mesaj.akk = 'N';
       cout << "S-a pierdut primul pachet!\n";
     }
-    else{
+    else
+    {
       mesaj.akk = 'A';
       cout << "E totul bine!\n";
     }
@@ -78,7 +79,8 @@ int main(int argc,char** argv){
     memcpy(t.payload, &mesaj, sizeof(mesaj));
     t.len = MSGSIZE;
     send_message(&t);
-    if (mesaj.akk == 'A'){
+    if (mesaj.akk == 'A')
+    {
       break;
     }
   }
@@ -88,23 +90,24 @@ int main(int argc,char** argv){
   vector<int> packets(msg_count);
   mesaj.size = 0;
   vector<cs> mesaje(msg_count, mesaj);
-  for (int i = 0; i < msg_count; i++){
+  for (int i = 0; i < msg_count; i++)
+  {
     packets[i] = i;
   }
 
-  while(1){
+  while(1)
+  {
     /*for (unsigned int i = 0 ; i < packets.size(); i++){
       cout <<packets[i] << " ";
     }
     cout << "\n";*/
-    if (recv_message_timeout(&r, 2 * timeout) < 0){
+    if (recv_message_timeout(&r, 2 * timeout) < 0)
+    {
       printf("[%s] Timeout, expected %d!\n", argv[0], expected_message);
       memset(t.payload, 0, sizeof(t.payload));
       memset(mesaj.data, 0, sizeof(mesaj.data));
       mesaj.akk = 'N';
       no_timeout++;
-      
-      //nrsort++;
 
       mesaj.sequence_number = expected_message;
       memcpy(t.payload, &mesaj, sizeof(mesaj));
@@ -127,86 +130,91 @@ int main(int argc,char** argv){
     checksum_r ^= mesaj.sequence_number;
     checksum_r ^= mesaj.size;  
 
-    //out << checksum_r << " " << mesaj.checksum << "\n";
-    if (checksum_r != mesaj.checksum){
-      
-      //last_req_msg = mesaj.sequence_number;
+    if (checksum_r != mesaj.checksum)
+    {
       printf("CORRUPT! %d", bgn);
       packets.erase(packets.begin() + bgn);
-          if ((bgn + wnd) < aux){
-            packets.insert(packets.begin() + (bgn + wnd - 1), expected_message);
-          }
-          else{
-            packets.insert(packets.begin() + (aux - 1), expected_message);
-          }
-          //bgn--;
+      if ((bgn + wnd) < aux)
+      {
+        packets.insert(packets.begin() + (bgn + wnd - 1), expected_message);
+      }
+      else
+      {
+        packets.insert(packets.begin() + (aux - 1), expected_message);
+      }
+
       mesaj.akk = 'N'; //corrupt
       mesaj.sequence_number = expected_message;
-      //nrsort++;
     }
 
-    else{
-
+    else
+    {
       //mesajul nu este corupt, dar nu este cel pe care il asteptam
-      if (mesaj.sequence_number != expected_message){
+      if (mesaj.sequence_number != expected_message)
+      {
         printf("[%s] Wrong message, expected %d!\n", argv[0], expected_message);
-        if (mesaje[mesaj.sequence_number].size == 0){
+        if (mesaje[mesaj.sequence_number].size == 0)
+        {
           mesaje[mesaj.sequence_number] = mesaj;
-          //  bgn++;
+
+          for (j = bgn; j < packets.size(); j++)
+          {
+            if (packets[j] == mesaj.sequence_number)
+            {
+              break;
+            }
+          }
+          packets.erase(packets.begin() + j);
+          packets.insert(packets.begin(), mesaj.sequence_number);
+          bgn++;
+
           packets.erase(packets.begin() + bgn);
-          if ((bgn + wnd + 1) < aux){
+          if ((bgn + wnd) < aux)
+          {
             packets.insert(packets.begin() + (bgn + wnd - 1), expected_message);
           }
-          else{
+          else
+          {
             cout << "E pe final!\n";
             packets.insert(packets.begin() + (aux - 1), expected_message);
           }
 
-          for (j = bgn; j < packets.size(); j++){
-            if (packets[j] == mesaj.sequence_number){
-              break;
-            }
-          }
-
-          packets.erase(packets.begin() + j);
-          packets.insert(packets.begin(), mesaj.sequence_number);
-          bgn++;
-          cout << "--- bgn =  " << bgn << " ";
-          //packets.erase(packets.begin() + bgn);
-          
-          nrsort++;
+          nr_msg++;
         }
-        else{
+        else
+        {
           cout << "Nasol, mai exista deja!" << mesaj.sequence_number << "\n";
+
           packets.erase(packets.begin() + bgn);
-          if ((bgn + wnd) < aux){
-            packets.insert(packets.begin() + (bgn + wnd - 2), expected_message);
+          if ((bgn + wnd) < aux)
+          {
+            packets.insert(packets.begin() + (bgn + wnd - 1), expected_message);
           }
-          else{
+          else
+          {
             cout << "E pe final!\n";
             packets.insert(packets.begin() + (aux - 1), expected_message);
           }
         }
 
         mesaj.akk = 'N';
-
         mesaj.sequence_number = expected_message;
-
       }
-      else{
+      else
+      {
         mesaj.akk = 'A';
-        if (mesaje[mesaj.sequence_number].size == 0){
-
+        if (mesaje[mesaj.sequence_number].size == 0)
+        {
           mesaje[mesaj.sequence_number] = mesaj;
-          //packets.erase(packets.begin() + bgn);
           bgn++;
-          nrsort++;
+          nr_msg++;
         }
       } 
     }
 
     //verific daca am receptionat deja toate mesajele
-    if (nrsort == msg_count){
+    if (bgn == msg_count)
+    {
       cout << "AAAAA" << "\n";
       break;
     }
@@ -237,7 +245,8 @@ int main(int argc,char** argv){
 
   it++;
 
-  for (; it != mesaje.end(); it++){
+  for (; it != mesaje.end(); it++)
+  {
     if ((write_check = write(file, ((cs)(*it)).data, ((cs)(*it)).size)) < 0){
       perror("Write error!");
       return -1;
