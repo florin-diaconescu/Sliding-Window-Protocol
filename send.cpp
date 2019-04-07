@@ -35,7 +35,7 @@ int main(int argc,char** argv){
 
   int i, j, count, file, citit; //count - numarul total de pachete ce vor fi trimise
 
-  cout << wnd << "\n";
+  //cout << wnd << "\n";
   file = open(file_name, O_RDONLY);
   if (!file)
   {
@@ -60,7 +60,7 @@ int main(int argc,char** argv){
     wnd = count - 1;
   }
 
-  cout << "wnd = " << wnd << " count = " << count << "\n";
+  //cout << "wnd = " << wnd << " count = " << count << "\n";
 
   while(1)
   {
@@ -96,12 +96,12 @@ int main(int argc,char** argv){
       mesaj = *((cs *)t.payload);
       if (mesaj.akk == 'A')
       {
-        printf("[%s] Got reply!\n", argv[0]);
+        //printf("[%s] Got reply!\n", argv[0]);
         break;
       }
       else
       {
-        printf("[%s] NAK!\n", argv[0]);
+        //printf("[%s] NAK!\n", argv[0]);
       }
     }
   }
@@ -162,7 +162,7 @@ int main(int argc,char** argv){
       memset(t.payload, 0, sizeof(t.payload));
       memcpy(t.payload, &mesaj, sizeof(mesaj));
       t.len = mesaj.size;
-      printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
+      //printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
       send_message(&t);
       
       i++;
@@ -178,24 +178,24 @@ int main(int argc,char** argv){
     else{
       if (strcmp(t.payload, "RECEIVED") == 0)
       {
-        printf("RECEIVED\n");
+        //printf("RECEIVED\n");
         break;
       }
       cs mesaj = *((cs *)t.payload);
       if (mesaj.akk == 'A')
       {
-        printf("[%s] Got reply %d!\n", argv[0], mesaj.sequence_number);
+        //printf("[%s] Got reply %d!\n", argv[0], mesaj.sequence_number);
         count--;
       }
       else
       {
-        printf("[%s] NAK %d!\n", argv[0], mesaj.sequence_number);
+        //printf("[%s] NAK %d!\n", argv[0], mesaj.sequence_number);
         mesaj = mesaje[mesaj.sequence_number];
         memset(t.payload, 0, sizeof(t.payload));
         memcpy(t.payload, &mesaj, sizeof(mesaj));
         t.len = MSGSIZE;
         send_message(&t);
-        printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
+        //printf("[%s] Am trimis mesajul %d!\n", argv[0], mesaj.sequence_number);
         wnd--;
         no_ret++;
       }
@@ -204,7 +204,7 @@ int main(int argc,char** argv){
     wnd++;
   }
 
-  cout << "Am retransmis atatea mesaje: " << no_ret << "\n";
+  //cout << "Am retransmis atatea mesaje: " << no_ret << "\n";
   //vreau mesajul de EXIT de la receiver, dupa ce a terminat de scris in fisier
   if (recv_message(&t)<0)
   {
@@ -212,7 +212,7 @@ int main(int argc,char** argv){
   }
   else
   {
-    printf("%s\n", t.payload);
+    //printf("%s\n", t.payload);
   }
 
   close(file);

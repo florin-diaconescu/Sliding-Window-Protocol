@@ -46,7 +46,7 @@ int main(int argc,char** argv){
       mesaj.akk = 'N';
     }
 
-    printf("[%s] Got message!\n",argv[0]);
+    //printf("[%s] Got message!\n",argv[0]);
 
     mesaj = *((cs *)r.payload);
     checksum_r = 0;
@@ -63,12 +63,12 @@ int main(int argc,char** argv){
     if (checksum_r != mesaj.checksum)
     {
       mesaj.akk = 'N';
-      cout << "S-a pierdut primul pachet!\n";
+      //cout << "S-a pierdut primul pachet!\n";
     }
     else
     {
       mesaj.akk = 'A';
-      cout << "E totul bine!\n";
+      //cout << "E totul bine!\n";
     }
 
     msg_count = atoi(mesaj.data) + 2;
@@ -103,7 +103,7 @@ int main(int argc,char** argv){
     cout << "\n";*/
     if (recv_message_timeout(&r, 2 * timeout) < 0)
     {
-      printf("[%s] Timeout, expected %d!\n", argv[0], expected_message);
+      //printf("[%s] Timeout, expected %d!\n", argv[0], expected_message);
       memset(t.payload, 0, sizeof(t.payload));
       memset(mesaj.data, 0, sizeof(mesaj.data));
       mesaj.akk = 'N';
@@ -119,7 +119,7 @@ int main(int argc,char** argv){
 
     mesaj = *((cs *)r.payload);
 
-    printf("[%s] Got message %d!\n",argv[0], mesaj.sequence_number);
+    //printf("[%s] Got message %d!\n",argv[0], mesaj.sequence_number);
 
     checksum_r = 0;
     for (i = 0; i < PAYLOADSIZE; i++){
@@ -132,7 +132,7 @@ int main(int argc,char** argv){
 
     if (checksum_r != mesaj.checksum)
     {
-      printf("CORRUPT! %d", bgn);
+      //printf("CORRUPT! %d", bgn);
       packets.erase(packets.begin() + bgn);
       if ((bgn + wnd) < aux)
       {
@@ -152,7 +152,7 @@ int main(int argc,char** argv){
       //mesajul nu este corupt, dar nu este cel pe care il asteptam
       if (mesaj.sequence_number != expected_message)
       {
-        printf("[%s] Wrong message, expected %d!\n", argv[0], expected_message);
+        //printf("[%s] Wrong message, expected %d!\n", argv[0], expected_message);
         if (mesaje[mesaj.sequence_number].size == 0)
         {
           mesaje[mesaj.sequence_number] = mesaj;
@@ -175,7 +175,7 @@ int main(int argc,char** argv){
           }
           else
           {
-            cout << "E pe final!\n";
+            //cout << "E pe final!\n";
             packets.insert(packets.begin() + (aux - 1), expected_message);
           }
 
@@ -183,7 +183,7 @@ int main(int argc,char** argv){
         }
         else
         {
-          cout << "Nasol, mai exista deja!" << mesaj.sequence_number << "\n";
+          //cout << "Nasol, mai exista deja!" << mesaj.sequence_number << "\n";
 
           packets.erase(packets.begin() + bgn);
           if ((bgn + wnd) < aux)
@@ -192,7 +192,7 @@ int main(int argc,char** argv){
           }
           else
           {
-            cout << "E pe final!\n";
+            //cout << "E pe final!\n";
             packets.insert(packets.begin() + (aux - 1), expected_message);
           }
         }
@@ -215,7 +215,7 @@ int main(int argc,char** argv){
     //verific daca am receptionat deja toate mesajele
     if (bgn == msg_count)
     {
-      cout << "AAAAA" << "\n";
+      //cout << "AAAAA" << "\n";
       break;
     }
     
@@ -254,7 +254,7 @@ int main(int argc,char** argv){
   }
 
   close(file);
-  cout << "Am luat timeout de: " << no_timeout << "\n";
+  //cout << "Am luat timeout de: " << no_timeout << "\n";
 
   //trimit sender-ului un mesaj ca s-a terminat scrierea in fisier
   memset(t.payload, 0, sizeof(t.payload));
@@ -264,4 +264,3 @@ int main(int argc,char** argv){
 
   return 0;
 }
-
