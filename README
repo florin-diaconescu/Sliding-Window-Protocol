@@ -1,0 +1,58 @@
+//Diaconescu Florin, 322CB, florin.diaconescu
+
+----------------------PROTOCOL CU FEREASTRA GLISANTA---------------------------
+
+Mentionez ca local primesc 61 de puncte, asa ca, daca nu va corespunde cu punctajul
+de pe vmchecker, as dori sa se ruleze manual.
+
+Structura folosita de mine (cs) consta intr-un vector de caractere (de dimensiune 
+1394),corespunzator datelor citite efectiv din fisierul ce va fi transferat, un 
+char in care stochez daca mesajul a fost receptionat sau nu, un short in care
+memorez numarul de secventa, si inca un short pentru dimensiunea efectiva a datelor.
+
+Pentru implementarea protocolului cu fereastra glisanta am hotarat sa aleg C++,
+in detrimentul C-ului, pentru usurinta lucrului cu std::vector, pentru stocarea
+mesajelor citite in receiver, si a mesajelor primite necorupte in receiver. Initial
+am luat in considerare utilizarea std::set, pentru a putea introduce sortat si fara
+elemente duplicate mesajele primite in receiver, insa mi-am dat seama ca pot sa
+am aceeasi functionalitate si cu un vector de msg_count elemente initializate cu
+un mesaj dummy, si verificand daca elementul corespunzator mesaj.sequence_number
+a fost alterat.
+
+Dupa ce calculez dimensiunea ferestrei glisante, in functie de speed si delay (si,
+eventual, daca numarul total de mesaje este mai mic decat fereastra), timeout-ul
+si numarul de mesaje, trimit un mesaj spre receiver, pe care va trebui neaparat
+sa il primesc corect, pe acesta bazand-se receptia mesajelor cu fereastra glisanta
+ulterior.
+
+In sender am un vector de mesaje, in care salvez fiecare portiune de 1394 de bytes
+din fisierul de intrare, folosind functia read, ce vor urma sa fie trimise. Analog,
+in receiver am tot un vector de mesaje, cu o functionalitate descrisa putin mai sus,
+in care voi memora doar mesajele primite necorupte, fara duplicate. De asemenea, tot
+in receiver am si un vector de int-uri ce simbolizeaza fereastra, prin intermediul
+caruia vad ce pachet ma astept sa vina, alterandu-l in functie de felul mesajului
+primit (daca este corupt sau alt mesaj decat cel asteptat, il voi extrage si pune
+la finalul ferestrei; daca este altul decat cel asteptat, neduplicat mai extrag, de
+asemenea si acel mesaj, pentru a-l introduce la inceput; daca este cel asteptat,
+avansez pur si simplu fereastra).
+
+Logica sender-ului este urmatoarea: initial trimit wnd mesaje, apoi, in functie de
+raspunsul primit, voi trimite un mesaj la receiver. Daca primesc ACK si nu am depasit
+deja numarul maxim de fisiere trimise), voi trimite urmatorul mesaj din vector. Daca
+primesc NAK, retrimit mesajul dorit de receiver, fara a fi posibila indeplinirea ambelor
+conditii, prin gestionarea variabilei wnd. Bucla infinita in care trimite mesaje va fi
+inchisa in momentul in care primeste "RECEIVED", caz in care toate mesajele au fost
+primite corect, deci nu mai este nevoie de trimiterea de mesaje.
+
+In receiver am grija de functionalitatea efectiva a programului, in care gestionez ce
+mesaj ma astept sa primesc, am grija sa nu depasesc timeout-ul la receive_message si
+verific ce fel de mesaj am primit. Pentru fiecare mesaj, calculez checksum-ul, pentru
+a-l verifica cu cel declarat in structura, in cazul contrar aruncandu-l si cerand inca
+o data acel mesaj. Daca este corect, dar nu este cel la care ma asteptam, il memorez
+(evident, daca nu este duplicat) si vad la ce mesaj m-as astepta dupa (aici esueaza
+programul meu, pentru ca se executa prea multe retransmiteri cand vine vorba de LOSS),
+transmitandu-l cu NAK sender-ului. Daca mesajul este corect din toate punctele de vedere,
+voi trimite ACK si avansez fereastra. La finalul receptionarii mesajelor, voi deschide
+fisierul de receptie, pe baza numelui fisierului de unde am luat pachetele, urmand
+sa scriu cele msg_count bucati, pe baza campului size din structura. Dupa ce totul
+este in regula, voi trimite un mesaj, pentru a putea inchide si sender-ul.
